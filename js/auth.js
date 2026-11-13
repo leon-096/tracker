@@ -481,7 +481,6 @@ window.Auth = (function () {
 
   function logout() {
     clearSession();
-    App.teardown();
     location.reload();
   }
 

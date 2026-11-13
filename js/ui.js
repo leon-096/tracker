@@ -52,10 +52,6 @@ window.DateUtil = (function () {
     return toKey(d);
   }
 
-  function diffDays(a, b) {
-    return Math.round((parse(b) - parse(a)) / 86400000);
-  }
-
   function dow(dateStr) {
     return parse(dateStr).getUTCDay(); // 0 = Sunday
   }
@@ -101,11 +97,6 @@ window.DateUtil = (function () {
     return monthShort(dateStr) + " " + dayNum(dateStr);
   }
 
-  function longLabel(dateStr) {
-    const d = parse(dateStr);
-    return WEEKDAYS[d.getUTCDay()] + ", " + MONTHS[d.getUTCMonth()] + " " + d.getUTCDate() + ", " + d.getUTCFullYear();
-  }
-
   function monthLabel(dateStr) {
     return MONTHS[parse(dateStr).getUTCMonth()] + " " + parse(dateStr).getUTCFullYear();
   }
@@ -114,20 +105,10 @@ window.DateUtil = (function () {
     return WEEKDAYS[dow(dateStr)];
   }
 
-  function clockNow() {
-    try {
-      return new Intl.DateTimeFormat("en-GB", {
-        timeZone: TZ, hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false,
-      }).format(new Date());
-    } catch (e) {
-      return new Date().toTimeString().slice(0, 8);
-    }
-  }
-
   return {
-    TZ, today, fromISO, parse, toKey, addDays, addMonths, diffDays, dow,
+    TZ, today, fromISO, addDays, addMonths, dow,
     startOfWeek, startOfMonth, endOfMonth, daysBetweenList,
-    monthShort, dayNum, label, longLabel, monthLabel, weekdayShort, clockNow,
+    monthShort, dayNum, label, monthLabel, weekdayShort,
   };
 })();
 
@@ -143,10 +124,8 @@ window.UI = (function () {
         if (k === "class") node.className = v;
         else if (k === "text") node.textContent = v;
         else if (k === "html") node.innerHTML = v;
-        else if (k === "dataset") Object.assign(node.dataset, v);
         else if (k === "style") node.setAttribute("style", v);
         else if (k === "value") node.value = v;
-        else if (k === "checked") node.checked = !!v;
         else if (k.slice(0, 2) === "on" && typeof v === "function") {
           node.addEventListener(k.slice(2).toLowerCase(), v);
         } else node.setAttribute(k, v === true ? "" : String(v));
@@ -182,17 +161,12 @@ window.UI = (function () {
     bolt: '<polygon points="13 2 4 14 11 14 10 22 20 9 13 9 13 2"/>',
     shield:
       '<path d="M12 3l7 3v5.5c0 4.6-3 8-7 9.5-4-1.5-7-4.9-7-9.5V6l7-3Z"/><path d="M9 11.5l2 2 4-4"/>',
-    trophy:
-      '<path d="M8 4h8v4a4 4 0 0 1-8 0Z"/><path d="M8 5H5v1a3 3 0 0 0 3 3"/><path d="M16 5h3v1a3 3 0 0 1-3 3"/><path d="M12 12v4"/><path d="M9 20h6"/><path d="M10 16h4l1 4H9Z"/>',
     check: '<polyline points="4 12 9 17 20 6"/>',
-    plus: '<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>',
     edit: '<path d="M4 20h4L20 8l-4-4L4 16Z"/><path d="M14 6l4 4"/>',
     trash: '<path d="M4 7h16"/><path d="M9 7V4h6v3"/><path d="M6 7l1 13h10l1-13"/><path d="M10 11v5M14 11v5"/>',
     up: '<polyline points="6 14 12 8 18 14"/>',
     down: '<polyline points="6 10 12 16 18 10"/>',
     close: '<line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/>',
-    lock: '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>',
-    eye: '<path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"/><circle cx="12" cy="12" r="2.6"/>',
     download: '<path d="M12 4v10"/><polyline points="7 10 12 15 17 10"/><path d="M4 19h16"/>',
     upload: '<path d="M12 16V5"/><polyline points="7 10 12 5 17 10"/><path d="M4 20h16"/>',
   };
@@ -219,14 +193,17 @@ window.UI = (function () {
     }, ms || 1500);
   }
 
-  let closeModalFn = null;
-
   function closeModal() {
     const root = document.getElementById("modal-root");
+    document.removeEventListener("keydown", onEscape);
     if (!root) return;
     root.hidden = true;
+    root.onclick = null;
     clear(root);
-    closeModalFn = null;
+  }
+
+  function onEscape(ev) {
+    if (ev.key === "Escape") closeModal();
   }
 
   function openModal(opts) {
@@ -235,8 +212,8 @@ window.UI = (function () {
     clear(root);
     root.hidden = false;
 
-    const close = () => closeModal();
-    const box = el("div", { class: "modal" + (opts.wide ? " modal-wide" : ""), role: "dialog", "aria-modal": "true" });
+    const close = closeModal;
+    const box = el("div", { class: "modal", role: "dialog", "aria-modal": "true" });
 
     const head = el("div", { class: "modal-head" }, [
       el("div", { class: "modal-title", text: "> " + (opts.title || "") }),
@@ -265,22 +242,10 @@ window.UI = (function () {
     }
 
     root.appendChild(box);
-    closeModalFn = close;
-
-    const backdrop = (ev) => {
-      if (ev.target === root) close();
-    };
-    root.onclick = backdrop;
-    document.addEventListener("keydown", escOnce);
+    root.onclick = (ev) => { if (ev.target === root) close(); };
+    document.addEventListener("keydown", onEscape);
     if (opts.onMount) opts.onMount(box, close);
     return close;
-  }
-
-  function escOnce(ev) {
-    if (ev.key === "Escape") {
-      document.removeEventListener("keydown", escOnce);
-      closeModal();
-    }
   }
 
   function ring(percent, centerBig, centerSmall) {
@@ -314,11 +279,5 @@ window.UI = (function () {
     return wrap;
   }
 
-  function spinner(text) {
-    return el("div", { class: "loading" }, [
-      el("span", { class: "loading-dots", text: "> " + (text || "working") }),
-    ]);
-  }
-
-  return { el, clear, icon, toast, openModal, closeModal, ring, sparkline, spinner };
+  return { el, clear, icon, toast, openModal, closeModal, ring, sparkline };
 })();

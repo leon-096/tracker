@@ -88,7 +88,6 @@ window.CryptoUtil = (function () {
   }
 
   return {
-    ITERATIONS,
     bytesToBase64,
     base64ToBytes,
     randomBytes,

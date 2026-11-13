@@ -53,9 +53,8 @@ window.Graphs = (function () {
     return Number.isFinite(n) ? n : null;
   }
 
-  function buildSeries(state, dates, habit) {
-    const labels = dates.map((d) => tickLabel(d, dates.length > 7 ? "monthly" : "weekly"));
-    const fullLabels = dates.map((d) => DateUtil.label(d));
+  function buildSeries(state, dates, habit, mode) {
+    const labels = dates.map((d) => tickLabel(d, mode));
 
     if (habit) {
       const vals = dates.map((d) => {
@@ -68,7 +67,6 @@ window.Graphs = (function () {
       });
       return {
         labels,
-        fullLabels,
         series: [
           {
             label: habit.name,
@@ -77,9 +75,7 @@ window.Graphs = (function () {
             color: habit.color || "#00ff88",
           },
         ],
-        logged: vals.filter((v) => v !== null),
         counts: vals,
-        habit,
       };
     }
 
@@ -117,16 +113,13 @@ window.Graphs = (function () {
 
     return {
       labels,
-      fullLabels,
       series: [
         { label: "Booleans done", data: booleans, line: false, color: "#00ff88", stack: "a" },
         { label: "Counts logged", data: counts, line: false, color: "#ffb000", stack: "a" },
         { label: "Value avg", data: values, line: true, color: "#66d9ff" },
       ],
       logged,
-      booleans,
       counts,
-      values,
     };
   }
 
@@ -238,12 +231,7 @@ window.Graphs = (function () {
     toolbar.appendChild(select);
     section.appendChild(toolbar);
 
-    if (!period.dates.length) {
-      section.appendChild(UI.el("div", { class: "empty", text: "> no data in this period" }));
-      return;
-    }
-
-    const built = buildSeries(state, period.dates, habit);
+    const built = buildSeries(state, period.dates, habit, view.mode);
     const stats = buildStats(state, period.dates, habit, built);
 
     const chartWrap = UI.el("div", { class: "chart-wrap" });

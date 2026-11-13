@@ -32,8 +32,6 @@ window.App = (function () {
 
   function start() {
     if (!Store.isReady()) return;
-    document.getElementById("lock-screen").hidden = true;
-    document.getElementById("app").hidden = false;
 
     date = DateUtil.today();
     lastLevel = Gamify.level(Store.get().xp.total);
@@ -51,11 +49,6 @@ window.App = (function () {
     }
 
     renderAll();
-  }
-
-  function teardown() {
-    started = false;
-    clearTimeout(renderTimer);
   }
 
   function applyCrt() {
@@ -1078,7 +1071,7 @@ window.App = (function () {
     }
   }
 
-  return { start, teardown, renderAll };
+  return { start, renderAll };
 })();
 
 (function boot() {

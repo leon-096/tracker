@@ -44,7 +44,6 @@ window.Heatmap = (function () {
     const tooltip = UI.el("div", { class: "heat-tooltip", hidden: true });
 
     let lastMonth = null;
-    let totalCells = 0;
 
     for (let col = 0; col < COLUMNS; col++) {
       const colDate = DateUtil.addDays(start, col * 7);
@@ -58,7 +57,6 @@ window.Heatmap = (function () {
 
     for (let i = 0; i < COLUMNS * ROWS; i++) {
       const date = DateUtil.addDays(start, i);
-      totalCells++;
       const future = date > today;
       const progress = future ? null : Gamify.dayProgress(state, date);
       const percent = progress ? progress.percent : 0;
@@ -87,12 +85,6 @@ window.Heatmap = (function () {
     container.appendChild(head);
     container.appendChild(wrap);
     container.appendChild(tooltip);
-    container.appendChild(
-      UI.el("p", { class: "dim small" }, [
-        "Click a day to open it. ",
-        String(totalCells) + " cells.",
-      ])
-    );
   }
 
   function showTip(tooltip, ev, date, progress) {
@@ -107,5 +99,5 @@ window.Heatmap = (function () {
     tooltip.style.top = ev.clientY + pad + "px";
   }
 
-  return { render, colorFor, COLORS };
+  return { render };
 })();

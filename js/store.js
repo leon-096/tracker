@@ -60,12 +60,10 @@ window.Store = (function () {
 
   function sanitizeHabit(h) {
     const type = ["boolean", "count", "value"].indexOf(h.type) !== -1 ? h.type : "boolean";
-    let target = h.target;
-    if (target === "" || target === undefined || target === null) target = null;
-    else {
-      target = Number(target);
-      if (!Number.isFinite(target)) target = null;
-    }
+    const parsedTarget = h.target === "" || h.target === undefined || h.target === null
+      ? null
+      : Number(h.target);
+    const target = Number.isFinite(parsedTarget) ? parsedTarget : null;
     return {
       id: h.id ? String(h.id) : uid(),
       name: String(h.name || "Untitled").slice(0, 80),
@@ -114,11 +112,6 @@ window.Store = (function () {
 
   function get() { return state; }
   function isReady() { return !!state; }
-  function getSalt() { return salt; }
-  function hasKey() { return !!key; }
-  function setKey(newKey) { key = newKey; }
-  function getKey() { return key; }
-
   function subscribe(fn) {
     subscribers.add(fn);
     return function () { subscribers.delete(fn); };
@@ -135,14 +128,17 @@ window.Store = (function () {
     });
   }
 
-  function afterChange() {
-    Gamify.recomputeXP(state);
-    const earned = Gamify.evaluateBadges(state);
+  function announceBadges(earned) {
     for (const badge of earned) {
       badgeHandlers.forEach((fn) => {
         try { fn(badge); } catch (e) { console.error(e); }
       });
     }
+  }
+
+  function afterChange() {
+    Gamify.recomputeXP(state);
+    announceBadges(Gamify.evaluateBadges(state));
     emit();
     scheduleSave();
   }
@@ -178,20 +174,13 @@ window.Store = (function () {
   function replaceAll(data) {
     state = normalize(data);
     Gamify.recomputeXP(state);
-    const earned = Gamify.evaluateBadges(state);
-    for (const badge of earned) {
-      badgeHandlers.forEach((fn) => {
-        try { fn(badge); } catch (e) { console.error(e); }
-      });
-    }
+    announceBadges(Gamify.evaluateBadges(state));
     emit();
     scheduleSave();
   }
 
   function resetEverything() {
-    const fresh = buildInitialState();
-    fresh.createdAt = new Date().toISOString();
-    state = fresh;
+    state = buildInitialState();
     Gamify.recomputeXP(state);
     emit();
     scheduleSave();
@@ -213,20 +202,13 @@ window.Store = (function () {
   return {
     PALETTE,
     uid,
-    seedHabits,
     buildInitialState,
-    normalize,
     init,
     get,
     isReady,
-    getKey,
-    setKey,
-    getSalt,
-    hasKey,
     subscribe,
     onBadge,
     mutate,
-    saveNow,
     replaceAll,
     resetEverything,
     setTitle,

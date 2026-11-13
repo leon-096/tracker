@@ -49,11 +49,6 @@ window.Habits = (function () {
     return setValue(date, habitId, next === 0 ? null : next);
   }
 
-  function setCount(date, habitId, value) {
-    const n = Math.max(0, Math.min(999, Math.floor(Number(value) || 0)));
-    return setValue(date, habitId, n === 0 ? null : n);
-  }
-
   function add(fields) {
     const list = all();
     const maxOrder = list.reduce((acc, h) => Math.max(acc, h.order), -1);
@@ -108,23 +103,17 @@ window.Habits = (function () {
 
   function move(id, direction) {
     Store.mutate((s) => {
-      const list = s.habits.filter((h) => !h.deleted).sort((a, b) => a.order - b.order);
-      const index = list.findIndex((h) => h.id === id);
-      const swapWith = index + direction;
-      if (index === -1 || swapWith < 0 || swapWith >= list.length) return;
-      const other = list[swapWith];
-      const tmp = list[index];
-      const a = tmp.order;
-      const b = other.order;
-      // Encoded in the full (including deleted) list order space.
-      const allSorted = s.habits.slice().sort((x, y) => x.order - y.order);
-      const posA = allSorted.indexOf(tmp);
-      const posB = allSorted.indexOf(other);
-      allSorted[posA] = other;
-      allSorted[posB] = tmp;
-      allSorted.forEach((h, i) => { h.order = i; });
-      s.habits = allSorted;
-      void a; void b;
+      const visible = s.habits.filter((h) => !h.deleted).sort((a, b) => a.order - b.order);
+      const index = visible.findIndex((h) => h.id === id);
+      const target = index + direction;
+      if (index === -1 || target < 0 || target >= visible.length) return;
+
+      const current = visible[index];
+      const neighbour = visible[target];
+      const swap = current.order;
+      current.order = neighbour.order;
+      neighbour.order = swap;
+      s.habits.sort((a, b) => a.order - b.order);
     });
   }
 
@@ -148,5 +137,5 @@ window.Habits = (function () {
     return Store.PALETTE[used % Store.PALETTE.length];
   }
 
-  return { all, active, get, setValue, toggle, step, setCount, add, update, remove, move, reorder, nextColor };
+  return { active, get, setValue, toggle, step, add, update, remove, move, reorder, nextColor };
 })();

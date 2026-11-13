@@ -95,11 +95,6 @@ window.Gamify = (function () {
     };
   }
 
-  function completedInPeriod(state, date, habit) {
-    const entries = (state.logs || {})[date] || {};
-    return isLogged(habit, entries[habit.id]);
-  }
-
   function consistency(state, today) {
     let done = 0;
     let total = 0;
@@ -213,26 +208,18 @@ window.Gamify = (function () {
     return earned;
   }
 
-  function badgeById(id) {
-    return BADGES.find((b) => b.id === id) || null;
-  }
-
   return {
     DAY_CAP,
     isLogged,
-    habitXp,
     dayXp,
     recomputeXP,
     level,
     levelProgress,
     activeHabits,
     dayProgress,
-    completedInPeriod,
     consistency,
     weekSeries,
     BADGES,
     evaluateBadges,
-    badgeById,
-    badgeContext,
   };
 })();
