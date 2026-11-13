@@ -97,6 +97,78 @@ Gist (debounced 500 ms, with retry/backoff and a header sync dot).
 
 ---
 
+## Validate against your real Gist
+
+After pasting your two values into `js/config.js`, work through this in order.
+No need to open devtools for any of it — every result is on the lock screen.
+
+**1. Reload and read the config checklist.**
+The lock screen lists `GIST_ID`, `TOKEN`, `FILE` and `TIMEZONE` with `ok`,
+`missing`, or `check format`. `missing` means the placeholder is still there;
+`not a gist id` means the value is not 20 or 32 hex characters (people often
+paste the username or the gist title); `unrecognised prefix` means the token
+does not start with `github_pat_` or `ghp_`.
+
+**2. Expect one of three outcomes.**
+
+| What you see | What it means |
+|---|---|
+| `new account` + `no data.enc in this gist` | Read worked. The gist is reachable and has no blob yet, so creating the password is the right next step. |
+| `locked` + `encrypted store found` | Read worked and `data.enc` is a valid blob. Enter the password you used on your other device. |
+| `connection failed` + a code | Read failed. The code and hint list name the exact problem — see the table below. |
+
+**3. Confirm the gist is really yours.**
+Both the create and login screens print the gist's owner, description, public/
+secret state, and file list. If the description is not `habit-tracker-data`, or
+it says `PUBLIC`, you are pointed at the wrong gist — fix `GIST_ID` before
+entering a password.
+
+**4. Create the account, then verify the first write.**
+Submit a password (min 8). The screen says `> deriving key…`, then unlocks to
+Today with the 14 seed habits. The header dot turns green and `last synced`
+shows a time. If the dot is red, the code is in the tooltip and on the lock
+screen after a reload.
+
+**5. Prove round-trip persistence.**
+Log one habit, wait ~2 seconds for the debounced write, then reload. You should
+land on `locked`, enter the password, and see the habit still checked. That is
+the same path a second device takes.
+
+**6. Prove a wrong password is rejected.**
+Reload, enter a wrong password: `> ACCESS DENIED — wrong password. the blob did
+not authenticate.` Nothing is written; the gist is untouched.
+
+**7. Prove the token's limits.**
+Optional but useful: in the token settings set Gists to *read only*, reload, log
+a habit. The dot goes red with `[ERR_TOKEN_SCOPE_403]` and the write is refused
+— the read side still works. Set it back to read & write afterwards.
+
+### Lock-screen error codes
+
+| Code | Cause | Fix |
+|---|---|---|
+| `ERR_CONFIG` | `js/config.js` still has placeholders | Fill in both values, save, reload |
+| `ERR_TOKEN_401` | Token wrong, expired, revoked, or mistyped | Regenerate the PAT, paste the whole string |
+| `ERR_TOKEN_SCOPE_403` | Token valid but no Gists permission | Account permissions → Gists → Read and write |
+| `ERR_RATE_LIMIT_403` | 5,000 requests/hour used | Wait for the reset time shown |
+| `ERR_FORBIDDEN_403` | Other 403 (SSO, policy) | Read the GitHub message in the details block |
+| `ERR_GIST_404` | Wrong `GIST_ID`, deleted gist, or token can't see it | Copy the id from the gist URL; check Gists permission |
+| `ERR_NETWORK` | `api.github.com` unreachable | Connection, VPN, or an extension blocking it |
+| `ERR_GITHUB_5XX` | GitHub outage | Retry; check status.github.com |
+| `ERR_HTTP_BODY` | Response was not JSON | Proxy/captive portal intercepting api.github.com |
+| `ERR_HTTP_422` | GitHub rejected the request body | Keep `GIST_FILENAME` as `data.enc` |
+| `ERR_HTTP_<code>` | Any unmapped status | Read the GitHub message in the details block |
+| `ERR_GIST_TRUNCATED` | Blob over ~1 MB in the API response | Download the file from the gist and keep it as a backup |
+| `ERR_BLOB_JSON` | `data.enc` is not JSON | Something else wrote to the file; restore a backup |
+| `ERR_BLOB_SHAPE` | Missing `salt`/`iv`/`ciphertext` | Restore the original blob; do not hand-edit it |
+| `ERR_BLOB_SIZES` | Base64 salt/iv/ciphertext of wrong length | Restore an untouched copy of the blob |
+
+Every failure screen has **Retry** and **Copy diagnostics** (code, HTTP status,
+GitHub's message, masked gist id, masked token, filename, origin, user agent —
+no secrets) so a problem can be reported without exposing the key.
+
+---
+
 ## Everyday use
 
 - **Today** — date selector (past days editable, future locked), completion

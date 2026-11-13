@@ -174,7 +174,8 @@ window.App = (function () {
     const dotClass = sync.status === "error" ? "error" : sync.status === "syncing" ? "syncing" : sync.status === "ok" ? "ok" : "";
     const dotTitle =
       sync.status === "error"
-        ? "Sync failed: " + sync.message + " — retrying"
+        ? "Sync failed " + (sync.code ? "[" + sync.code + "] " : "") + sync.message +
+          (sync.retryable ? " — retrying" : " — will not retry; fix config")
         : sync.status === "syncing"
           ? "Syncing…"
           : sync.lastOkAt
