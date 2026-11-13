@@ -61,7 +61,7 @@ window.Auth = (function () {
   function configRows() {
     const report = GistAPI.configReport();
     const section = UI.el("div", { class: "lock-section" }, [
-      UI.el("div", { class: "check-title", text: "// js/config.js" }),
+      UI.el("div", { class: "check-title", text: "// credentials" }),
     ]);
     const list = UI.el("div", { class: "check-list" });
 
@@ -76,8 +76,10 @@ window.Auth = (function () {
     else if (!report.token.looksValid) { tokenFlag = "unrecognised prefix"; tokenClass = "warn"; }
     else tokenFlag = report.token.prefix;
 
+    const sourceLabel = report.source === "browser" ? "this browser" : report.source === "config" ? "js/config.js" : "—";
     list.appendChild(checkRow("GIST_ID", report.gistId.masked, idFlag, idClass));
     list.appendChild(checkRow("TOKEN", report.token.masked, tokenFlag, tokenClass));
+    list.appendChild(checkRow("SOURCE", sourceLabel, report.source === "none" ? "missing" : "ok", report.source === "none" ? "bad" : "ok"));
     list.appendChild(checkRow("FILE", report.filename, "ok", "ok"));
     list.appendChild(
       checkRow("TIMEZONE", report.timezone, report.timezoneValid ? "ok" : "invalid", report.timezoneValid ? "ok" : "bad")
@@ -110,11 +112,12 @@ window.Auth = (function () {
       kv.appendChild(UI.el("span", { class: "kv-v", text: String(v) }));
     };
 
+    const info = GistAPI.credentialInfo();
     add("status", err.httpStatus ? "HTTP " + err.httpStatus : err.kind || "");
     add("github", err.githubMessage || "");
-    add("request", "GET api.github.com/gists/" + GistAPI.maskId(GistAPI.config.GIST_ID));
-    add("token", GistAPI.maskToken(GistAPI.config.GITHUB_TOKEN));
-    add("file", GistAPI.config.GIST_FILENAME || "data.enc");
+    add("request", "GET api.github.com/gists/" + info.maskedId);
+    add("token", info.maskedToken);
+    add("file", info.filename);
     if (err.gist && err.gist.description) add("gist", '"' + err.gist.description + '"');
     if (err.gist && err.gist.owner) add("owner", "@" + err.gist.owner);
     if (kv.childNodes.length) box.appendChild(kv);
@@ -123,7 +126,7 @@ window.Auth = (function () {
   }
 
   function gistLine(gist) {
-    const bits = ["gist " + GistAPI.maskId(gist.id || GistAPI.config.GIST_ID)];
+    const bits = ["gist " + GistAPI.maskId(gist.id || "")];
     if (gist.owner) bits.push("@" + gist.owner);
     if (gist.description) bits.push('"' + gist.description + '"');
     bits.push(gist.isPublic ? "PUBLIC" : "private");
@@ -160,6 +163,7 @@ window.Auth = (function () {
       "github: " + (err.githubMessage || "—"),
       "gist: " + report.gistId.masked + " (" + report.gistId.length + " chars)",
       "token: " + report.token.masked + " (" + report.token.prefix + ")",
+      "credentials: " + report.source,
       "file: " + report.filename,
       "timezone: " + report.timezone,
       "origin: " + location.origin,
@@ -197,25 +201,74 @@ window.Auth = (function () {
     ]);
   }
 
+  function changeCredentials() {
+    GistAPI.clearSavedCredentials();
+    clearSession();
+    init();
+  }
+
+  function credentialsButton(block) {
+    if (GistAPI.credentialInfo().source !== "browser") return null;
+    return UI.el("button", {
+      class: "btn btn-ghost" + (block ? " btn-block" : ""),
+      type: "button",
+      text: block ? "use different credentials" : "Credentials",
+      onclick: changeCredentials,
+    });
+  }
+
   function renderSetup() {
-    setLock([
-      UI.el("h2", { text: "setup required" }),
-      UI.el("p", { class: "lead", text: "> js/config.js still has placeholders." }),
-      configRows(),
-      UI.el("div", { style: "margin-top:16px" }, [
-        UI.el("button", {
-          class: "btn btn-primary btn-block", type: "button", text: "Reload page",
-          onclick: () => location.reload(),
-        }),
+    const report = GistAPI.configReport();
+    const gist = UI.el("input", {
+      class: "input", type: "text", placeholder: "20- or 32-character gist id",
+      autocomplete: "off", spellcheck: "false", "aria-label": "Gist ID",
+    });
+    const token = UI.el("input", {
+      class: "input", type: "password", placeholder: "github_pat_… or ghp_…",
+      autocomplete: "off", spellcheck: "false", "aria-label": "GitHub token",
+    });
+    const error = UI.el("p", { class: "form-error" });
+    const submit = UI.el("button", {
+      class: "btn btn-primary btn-block", type: "submit", text: "save & connect",
+    });
+
+    const form = UI.el("form", { novalidate: true }, [
+      UI.el("h2", { text: "connect your gist" }),
+      UI.el("p", { class: "lead", text: "> enter a private gist and a gist-scoped token. they stay in this browser." }),
+      UI.el("div", { class: "field" }, [
+        UI.el("label", { text: "gist id" }), gist,
       ]),
-      UI.el("p", { class: "small dim", style: "margin-top:12px" }, [
-        "Edit js/config.js, save, then reload (Ctrl/Cmd+Shift+R to skip cache). ",
-        "README.md has the gist + token walkthrough.",
+      UI.el("div", { class: "field" }, [
+        UI.el("label", { text: "token" }), token,
       ]),
-      UI.el("p", { class: "small dim" }, [
-        "The app runs from any subpath — https://<user>.github.io/<repo>/ needs no changes.",
-      ]),
+      error,
+      UI.el("div", { style: "margin-top:14px" }, [submit]),
+      UI.el("p", { class: "small dim", style: "margin-top:12px", text: "> stored only in this browser — never committed. the token needs gists read + write." }),
+      (!report.gistId.placeholder || !report.token.placeholder)
+        ? UI.el("p", { class: "small dim", text: "> js/config.js values are incomplete; this browser's credentials will be used." })
+        : null,
+      UI.el("p", { class: "small dim", text: "> prefer the file? fill js/config.js and reload." }),
     ]);
+
+    form.addEventListener("submit", (ev) => {
+      ev.preventDefault();
+      error.textContent = "";
+      const id = gist.value.trim();
+      const tok = token.value.trim();
+      const problem = GistAPI.credentialProblem(id, tok);
+      if (problem) {
+        error.textContent = "> " + problem;
+        return;
+      }
+      if (!GistAPI.saveCredentials(id, tok)) {
+        error.textContent = "> this browser refused to store credentials. enable site storage and retry.";
+        return;
+      }
+      init();
+    });
+
+    setLock([form]);
+    gist.focus();
   }
 
   function renderError(err) {
@@ -228,6 +281,7 @@ window.Auth = (function () {
           class: "btn btn-primary", type: "button", text: "Retry",
           onclick: () => init(),
         }),
+        credentialsButton(false),
         UI.el("button", {
           class: "btn btn-ghost", type: "button", text: "Copy diagnostics",
           onclick: () => copyDiagnostics(err),
@@ -349,6 +403,7 @@ window.Auth = (function () {
       error,
       problemSlot,
       UI.el("div", { style: "margin-top:14px" }, [submit]),
+      credentialsButton(true),
       UI.el("p", { class: "lock-foot dim", text: "> forget it and the data is gone. permanently." }),
     ]);
 
@@ -422,6 +477,7 @@ window.Auth = (function () {
       ]),
       error,
       UI.el("div", { style: "margin-top:14px" }, [submit]),
+      credentialsButton(true),
       UI.el("p", { class: "lock-foot dim", text: "> there is no password recovery." }),
     ]);
 

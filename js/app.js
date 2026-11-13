@@ -659,16 +659,28 @@ window.App = (function () {
 
     const creds = UI.el("div", { class: "card" });
     creds.appendChild(UI.el("div", { class: "card-title", text: "// connection" }));
+    const info = GistAPI.credentialInfo();
+    const fromBrowser = info.source === "browser";
     creds.appendChild(
-      settingRow("Gist ID", "Where the encrypted blob lives.", [
-        UI.el("span", { class: "mono-value", text: GistAPI.maskId(GistAPI.config.GIST_ID) }),
+      settingRow("Gist ID", fromBrowser ? "Saved in this browser." : "From js/config.js.", [
+        UI.el("span", { class: "mono-value", text: info.maskedId }),
       ])
     );
     creds.appendChild(
-      settingRow("Token", "Gist-scoped. Ships in the bundle by design.", [
-        UI.el("span", { class: "mono-value", text: GistAPI.maskToken(GistAPI.config.GITHUB_TOKEN) }),
+      settingRow("Token", fromBrowser ? "Saved in this browser; never committed." : "From js/config.js.", [
+        UI.el("span", { class: "mono-value", text: info.maskedToken }),
       ])
     );
+    if (fromBrowser) {
+      creds.appendChild(
+        settingRow("Credentials", "Clear the gist and token saved in this browser.", [
+          UI.el("button", {
+            class: "btn btn-ghost", type: "button", text: "Change",
+            onclick: () => { GistAPI.clearSavedCredentials(); Auth.logout(); },
+          }),
+        ])
+      );
+    }
     creds.appendChild(
       settingRow("Timezone", "All date logic is pinned here.", [
         UI.el("span", { class: "mono-value", text: DateUtil.TZ }),

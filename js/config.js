@@ -1,13 +1,15 @@
 /* =========================================================================
-   config.js — FILL THESE TWO VALUES IN BEFORE USING THE APP
+   config.js — optional bundled credentials
    -------------------------------------------------------------------------
-   1. GIST_ID        -> the ID of a PRIVATE gist (from its URL).
-   2. GITHUB_TOKEN   -> a fine-grained PAT with ONLY the "gists" permission
-                        (read + write). Nothing else.
+   Recommended: enter the Gist ID and token on the app's setup screen. They
+   are stored only in that browser and never committed.
 
-   See README.md for the step-by-step. The token ships in the JS bundle by
-   design: anyone can write garbage to the gist, but nobody can read your
-   data without your password.
+   Fill these values only if you want credentials bundled with the deployed
+   site. This file is served publicly: anyone who can load the app can read a
+   committed token, and a Gists token can read/write every gist on the
+   account. Bundled values take precedence over browser-saved values.
+
+   See README.md for both paths.
    ========================================================================= */
 window.TRACKER_CONFIG = {
   GIST_ID: "PASTE_YOUR_GIST_ID_HERE",

@@ -15,6 +15,7 @@ window.GistAPI = (function () {
 
   const cfg = window.TRACKER_CONFIG || {};
   const API = "https://api.github.com";
+  const CREDENTIALS_KEY = "tracker.credentials.v1";
   const statusHandlers = new Set();
   let current = { status: "idle", message: "", code: "", retryable: true, at: null };
   let lastOkAt = null;
@@ -23,20 +24,81 @@ window.GistAPI = (function () {
     return cfg.GIST_FILENAME || "data.enc";
   }
 
+  /* Credentials come from js/config.js when it holds usable values; otherwise
+     from this browser's localStorage, entered on the setup screen. Bundled
+     values win so a deliberate config.js remains authoritative. */
+  function bundledCredentials() {
+    return {
+      gistId: String(cfg.GIST_ID || "").trim(),
+      token: String(cfg.GITHUB_TOKEN || "").trim(),
+      source: "config",
+    };
+  }
+
+  function savedCredentials() {
+    try {
+      const raw = localStorage.getItem(CREDENTIALS_KEY);
+      if (!raw) return null;
+      const data = JSON.parse(raw);
+      if (!data || typeof data.gistId !== "string" || typeof data.token !== "string") return null;
+      const gistId = data.gistId.trim();
+      const token = data.token.trim();
+      return gistId && token ? { gistId, token, source: "browser" } : null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function credentialProblem(id, tok) {
+    if (!/^[0-9a-f]{20}$|^[0-9a-f]{32}$/i.test(String(id || "").trim())) {
+      return "Gist ID must be the 20- or 32-character id from the gist URL.";
+    }
+    if (!/^(github_pat_|ghp_)[A-Za-z0-9_]{10,}$/.test(String(tok || "").trim())) {
+      return "Token must start with github_pat_ or ghp_.";
+    }
+    return "";
+  }
+
+  function usable(creds) {
+    if (!creds || !creds.gistId || !creds.token) return false;
+    if (creds.gistId.indexOf("PASTE") !== -1 || creds.token.indexOf("PASTE") !== -1) return false;
+    return !credentialProblem(creds.gistId, creds.token);
+  }
+
+  function activeCredentials() {
+    const bundled = bundledCredentials();
+    if (usable(bundled)) return bundled;
+    const saved = savedCredentials();
+    if (saved) return saved;
+    return Object.assign({}, bundled, { source: "none" });
+  }
+
   function gistId() {
-    return String(cfg.GIST_ID || "").trim();
+    return activeCredentials().gistId;
   }
 
   function token() {
-    return String(cfg.GITHUB_TOKEN || "").trim();
+    return activeCredentials().token;
   }
 
   function isConfigured() {
-    const id = gistId();
-    const tok = token();
-    if (!id || !tok) return false;
-    if (id.indexOf("PASTE") !== -1 || tok.indexOf("PASTE") !== -1) return false;
-    return true;
+    return usable(activeCredentials());
+  }
+
+  function saveCredentials(id, tok) {
+    const gistId = String(id || "").trim();
+    const token = String(tok || "").trim();
+    if (credentialProblem(gistId, token)) return false;
+    try {
+      localStorage.setItem(CREDENTIALS_KEY, JSON.stringify({ gistId, token }));
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function clearSavedCredentials() {
+    try { localStorage.removeItem(CREDENTIALS_KEY); } catch (e) { /* storage may be blocked */ }
   }
 
   function gistError(kind, code, message, extra) {
@@ -73,6 +135,16 @@ window.GistAPI = (function () {
     return s.slice(0, 6) + "…" + s.slice(-4);
   }
 
+  function credentialInfo() {
+    const active = activeCredentials();
+    return {
+      source: active.source,
+      maskedId: maskId(active.gistId),
+      maskedToken: maskToken(active.token),
+      filename: filename(),
+    };
+  }
+
   function timezoneValid() {
     try {
       new Intl.DateTimeFormat("en-CA", { timeZone: cfg.TIMEZONE || "Asia/Dhaka" }).format(new Date());
@@ -85,14 +157,16 @@ window.GistAPI = (function () {
   /* ------------------------------------------------------------ diagnostics */
 
   function configReport() {
-    const id = gistId();
-    const tok = token();
+    const active = activeCredentials();
+    const id = active.gistId;
+    const tok = active.token;
     const idPlaceholder = !id || id.indexOf("PASTE") !== -1;
     const tokenPlaceholder = !tok || tok.indexOf("PASTE") !== -1;
     const tokenPrefix = /^github_pat_/.test(tok) ? "fine-grained" : /^ghp_/.test(tok) ? "classic" : "unknown";
 
     return {
-      configured: !idPlaceholder && !tokenPlaceholder,
+      configured: usable(active),
+      source: active.source,
       gistId: {
         present: !!id,
         placeholder: idPlaceholder,
@@ -114,11 +188,11 @@ window.GistAPI = (function () {
   }
 
   function configError() {
-    return gistError("config", "ERR_CONFIG", "js/config.js is not filled in yet.", {
+    return gistError("config", "ERR_CONFIG", "No gist credentials are configured.", {
       hints: [
-        "Set GIST_ID to the id in the gist URL: gist.github.com/<user>/<id>.",
-        "Set GITHUB_TOKEN to a fine-grained PAT with Account permissions → Gists → Read and write.",
-        "Save the file and reload the page (a hard reload avoids a cached copy).",
+        "Enter the gist id and a gist-scoped token on the setup screen.",
+        "Or fill GIST_ID and GITHUB_TOKEN in js/config.js and reload.",
+        "The token needs Account permissions → Gists → Read and write.",
       ],
     });
   }
@@ -473,6 +547,10 @@ window.GistAPI = (function () {
   return {
     isConfigured,
     configReport,
+    credentialProblem,
+    credentialInfo,
+    saveCredentials,
+    clearSavedCredentials,
     read,
     write,
     reportFailure,
@@ -480,6 +558,5 @@ window.GistAPI = (function () {
     getStatus,
     maskToken,
     maskId,
-    config: cfg,
   };
 })();

@@ -43,7 +43,14 @@ You do **not** need npm, Node, or a build tool.
    permission at *No access*.
 5. Generate the token and copy it (`github_pat_…`). You will not see it again.
 
-### 3. Fill in `js/config.js`
+### 3. Connect the app
+
+Open the deployed site. The setup screen asks for the Gist ID and token; they
+are stored in this browser's `localStorage` and are **never committed**. The
+app uses them for every Gist request. Use **Settings → Connection → Change**
+to replace or clear them.
+
+Prefer bundled credentials? Fill `js/config.js` instead:
 
 ```javascript
 window.TRACKER_CONFIG = {
@@ -54,10 +61,15 @@ window.TRACKER_CONFIG = {
 };
 ```
 
-The token ships in the bundle. That is an accepted trade-off: someone reading
-the JS can write garbage to your Gist, but cannot read your data (it is
-encrypted with a password that is never stored), and cannot touch the rest of
-your GitHub account (the token is Gist-scoped).
+Bundled values take precedence. **Do not commit a token to a public repo**:
+GitHub Pages serves `config.js` as a public file, and a Gists read/write token
+can read and write **every gist on the account**, not only the tracker. Use a
+dedicated GitHub account if you bundle credentials.
+
+Browser storage is also readable by scripts on the same origin; all
+`<user>.github.io` project sites share that origin. The strict CSP blocks
+third-party scripts, but avoid saving the token in a browser profile that also
+loads untrusted Pages sites.
 
 ### 4. Push and enable GitHub Pages
 
@@ -147,7 +159,7 @@ a habit. The dot goes red with `[ERR_TOKEN_SCOPE_403]` and the write is refused
 
 | Code | Cause | Fix |
 |---|---|---|
-| `ERR_CONFIG` | `js/config.js` still has placeholders | Fill in both values, save, reload |
+| `ERR_CONFIG` | No usable credentials | Enter them on the setup screen, or fill `js/config.js` and reload |
 | `ERR_TOKEN_401` | Token wrong, expired, revoked, or mistyped | Regenerate the PAT, paste the whole string |
 | `ERR_TOKEN_SCOPE_403` | Token valid but no Gists permission | Account permissions → Gists → Read and write |
 | `ERR_RATE_LIMIT_403` | 5,000 requests/hour used | Wait for the reset time shown |
@@ -203,7 +215,7 @@ no secrets) so a problem can be reported without exposing the key.
 
 | Symptom | Fix |
 |---|---|
-| `setup required` | `js/config.js` still has the placeholders. |
+| `setup required` | No browser credentials and `js/config.js` still has placeholders. |
 | `Gist not found (404)` | Wrong `GIST_ID`, or the gist was deleted. |
 | `token rejected (401/403)` | Regenerate the PAT with Gists → read & write. |
 | Sync dot red | Network/API failure; retries automatically (1s → 30s backoff). |
@@ -214,7 +226,7 @@ no secrets) so a problem can be reported without exposing the key.
 ```
 index.html          app shell
 css/style.css       all styles (strict dark)
-js/config.js        your Gist ID + PAT
+js/config.js        optional bundled Gist ID + PAT
 js/crypto.js        Web Crypto (PBKDF2, AES-GCM)
 js/gist.js          Gist read/write + retry
 js/store.js         state, debounce, persistence
