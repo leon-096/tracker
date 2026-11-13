@@ -45,6 +45,7 @@ window.App = (function () {
       Store.onBadge((badge) =>
         UI.toast("> BADGE UNLOCKED — " + badge.name.toUpperCase(), "badge", 3200)
       );
+      Store.onMerge(() => UI.toast("> merged changes from another device", "info", 2400));
       GistAPI.onStatus(onSyncStatus);
     }
 
@@ -733,6 +734,30 @@ window.App = (function () {
       value: habit ? habit.color : Habits.nextColor(), "aria-label": "Habit color",
     });
 
+    const milestoneTags = Store.MILESTONES.map((m) => m.tag);
+    const milestone = UI.el("select", { class: "select", "aria-label": "Milestone tag" });
+    milestone.appendChild(UI.el("option", { value: "", text: "custom — no badge link" }));
+    Store.MILESTONES.forEach((m) => {
+      const owner = habit
+        ? (Store.get().habits || []).find((h) => h.id !== habit.id && h.tag === m.tag)
+        : null;
+      milestone.appendChild(UI.el("option", {
+        value: m.tag,
+        text: m.label + " — " + m.badge + (owner ? " (used by " + owner.name + ")" : ""),
+        disabled: !!owner,
+      }));
+    });
+    if (habit && habit.tag && milestoneTags.indexOf(habit.tag) === -1 && habit.tag.indexOf("custom_") !== 0) {
+      milestone.appendChild(UI.el("option", { value: habit.tag, text: "current — " + habit.tag }));
+    }
+    if (habit && habit.tag) milestone.value = habit.tag;
+
+    const milestoneField = UI.el("div", { class: "field" }, [
+      UI.el("label", { text: "milestone tag" }),
+      milestone,
+      UI.el("div", { class: "setting-hint", text: "reconnects a renamed habit to its badge. custom habits stay independent." }),
+    ]);
+
     function syncFields() {
       kindField.hidden = type.value !== "value";
       targetField.hidden = !(type.value === "count" || (type.value === "value" && kind.value !== "time"));
@@ -751,6 +776,7 @@ window.App = (function () {
         UI.el("label", { text: "color" }),
         UI.el("div", { class: "color-row" }, [color]),
       ]),
+      editing ? milestoneField : null,
     ]);
 
     UI.openModal({
@@ -779,8 +805,26 @@ window.App = (function () {
               unit: unit.value.trim() || null,
               color: color.value,
             };
-            if (editing) Habits.update(habit.id, fields);
-            else Habits.add(fields);
+            if (editing) {
+              const nextTag = milestone.value;
+              const currentTag = String(habit.tag || "");
+              const tagChanged = nextTag === ""
+                ? currentTag.indexOf("custom_") !== 0
+                : nextTag !== currentTag;
+              if (tagChanged) {
+                const result = Habits.setTag(habit.id, nextTag);
+                if (!result.ok) {
+                  UI.toast(
+                    "> milestone already used by " + (result.owner ? result.owner.name : "another habit"),
+                    "error", 2400
+                  );
+                  return;
+                }
+              }
+              Habits.update(habit.id, fields);
+            } else {
+              Habits.add(fields);
+            }
             close();
           },
         },

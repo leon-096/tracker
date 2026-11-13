@@ -287,17 +287,23 @@ window.GistAPI = (function () {
     }
 
     const files = json && json.files && typeof json.files === "object" ? json.files : {};
+    const revision =
+      (Array.isArray(json.history) && json.history[0] && json.history[0].version) ||
+      json.updated_at ||
+      "";
     const gist = {
       id: json.id || id,
       description: json.description || "",
       owner: json.owner && json.owner.login ? json.owner.login : "",
       fileNames: Object.keys(files),
       isPublic: !!json.public,
+      revision,
+      updatedAt: json.updated_at || "",
     };
 
     const file = files[filename()];
     if (!file) {
-      return { exists: false, blob: null, gist, reason: "missing-file" };
+      return { exists: false, blob: null, gist, revision, reason: "missing-file" };
     }
 
     if (file.truncated || (file.size && !file.content)) {
@@ -313,7 +319,7 @@ window.GistAPI = (function () {
 
     const raw = String(file.content || "").trim();
     if (!raw) {
-      return { exists: false, blob: null, gist, reason: "empty-file" };
+      return { exists: false, blob: null, gist, revision, reason: "empty-file" };
     }
 
     let blob;
@@ -345,7 +351,7 @@ window.GistAPI = (function () {
     const missing = ["salt", "iv", "ciphertext"].filter((k) => typeof blob[k] !== "string" || !blob[k]);
 
     if (missing.length === 3 && keys.length === 0) {
-      return { exists: false, blob: null, gist, reason: "empty-object" };
+      return { exists: false, blob: null, gist, revision, reason: "empty-object" };
     }
 
     if (missing.length) {
@@ -380,7 +386,7 @@ window.GistAPI = (function () {
       });
     }
 
-    return { exists: true, blob, gist, reason: "ok" };
+    return { exists: true, blob, gist, revision, reason: "ok" };
   }
 
   /* ----------------------------------------------------------------- write */
@@ -419,8 +425,16 @@ window.GistAPI = (function () {
 
       if (res) {
         if (res.ok) {
+          let revision = "";
+          try {
+            const body = await res.json();
+            revision =
+              (body && Array.isArray(body.history) && body.history[0] && body.history[0].version) ||
+              (body && body.updated_at) ||
+              "";
+          } catch (e) { /* revision is an optimisation; omitting it falls back to merging */ }
           setStatus("ok", "", "", false);
-          return { ok: true };
+          return { ok: true, revision };
         }
 
         let githubMessage = "";
@@ -450,11 +464,18 @@ window.GistAPI = (function () {
     return { ok: false, error: last };
   }
 
+  function reportFailure(err) {
+    const message = err && err.message ? err.message : "Sync failed.";
+    const code = err && err.code ? err.code : "ERR_SYNC";
+    setStatus("error", message, code, !(err && err.retryable === false));
+  }
+
   return {
     isConfigured,
     configReport,
     read,
     write,
+    reportFailure,
     onStatus,
     getStatus,
     maskToken,

@@ -266,7 +266,7 @@ window.Auth = (function () {
       try {
         const key = await CryptoUtil.importKey(session.key);
         const data = await CryptoUtil.decryptJSON(res.blob, key);
-        unlock(key, res.blob.salt, data);
+        unlock(key, res.blob.salt, data, res.revision);
         return;
       } catch (e) {
         clearSession();
@@ -389,7 +389,7 @@ window.Auth = (function () {
 
         const keyB64 = await CryptoUtil.exportKey(key);
         writeSession(keyB64, saltB64);
-        unlock(key, saltB64, initial);
+        unlock(key, saltB64, initial, result.revision);
       } catch (err) {
         error.textContent = "> " + (err && err.message ? err.message : "setup failed");
         problemSlot.appendChild(inlineProblem(err));
@@ -455,7 +455,7 @@ window.Auth = (function () {
         }
         const keyB64 = await CryptoUtil.exportKey(key);
         writeSession(keyB64, fresh.blob.salt);
-        unlock(key, fresh.blob.salt, data);
+        unlock(key, fresh.blob.salt, data, fresh.revision);
       } catch (err) {
         if (err && err.code) {
           UI.clear(error);
@@ -473,8 +473,8 @@ window.Auth = (function () {
     pw.focus();
   }
 
-  function unlock(key, salt, data) {
-    Store.init(key, salt, data);
+  function unlock(key, salt, data, revision) {
+    Store.init(key, salt, data, revision);
     hideLock();
     App.start();
   }

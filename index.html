@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src data:; connect-src https://api.github.com blob:; base-uri 'none'; form-action 'none'; object-src 'none'">
 <meta name="color-scheme" content="dark">
 <meta name="theme-color" content="#0a0a0a">
 <title>tracker</title>
@@ -38,7 +39,7 @@
 <div id="toast-root" class="toast-root" aria-live="polite" aria-atomic="false"></div>
 <div id="modal-root" class="modal-root" hidden></div>
 
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" defer></script>
+<script src="js/vendor/chart.umd.js" defer></script>
 <script src="js/config.js" defer></script>
 <script src="js/crypto.js" defer></script>
 <script src="js/gist.js" defer></script>

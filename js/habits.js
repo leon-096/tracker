@@ -55,8 +55,13 @@ window.Habits = (function () {
     const target = fields.target === null || fields.target === undefined || fields.target === ""
       ? null
       : Number(fields.target);
+    const usedTags = new Set(Store.get().habits.map((h) => h.tag));
+    let tag = Store.makeTag();
+    while (usedTags.has(tag)) tag = Store.makeTag();
+
     const habit = {
       id: Store.uid(),
+      tag,
       name: String(fields.name || "Untitled").slice(0, 80),
       type: ["boolean", "count", "value"].indexOf(fields.type) !== -1 ? fields.type : "boolean",
       frequency: "daily",
@@ -90,6 +95,26 @@ window.Habits = (function () {
       habit.color = fields.color || habit.color;
       habit.xpPerCompletion = habit.type === "count" ? 5 : 10;
     });
+  }
+
+  function setTag(id, tag) {
+    const state = Store.get();
+    const habit = (state.habits || []).find((h) => h.id === id);
+    if (!habit) return { ok: false, reason: "missing" };
+
+    const requested = String(tag || "").trim();
+    const next = requested ? Store.sanitizeTag(requested) : Store.makeTag();
+    if (!next) return { ok: false, reason: "invalid" };
+    if (next === habit.tag) return { ok: true, tag: habit.tag, changed: false };
+
+    const owner = (state.habits || []).find((h) => h.id !== id && h.tag === next);
+    if (owner) return { ok: false, reason: "taken", owner };
+
+    Store.mutate((s) => {
+      const target = (s.habits || []).find((h) => h.id === id);
+      if (target) target.tag = next;
+    });
+    return { ok: true, tag: next, changed: true };
   }
 
   function remove(id) {
@@ -137,5 +162,5 @@ window.Habits = (function () {
     return Store.PALETTE[used % Store.PALETTE.length];
   }
 
-  return { active, get, setValue, toggle, step, add, update, remove, move, reorder, nextColor };
+  return { active, get, setValue, toggle, step, add, update, setTag, remove, move, reorder, nextColor };
 })();

@@ -151,16 +151,18 @@ window.Gamify = (function () {
 
   function badgeContext(state) {
     const logs = state.logs || {};
-    const byName = (needle) =>
-      (state.habits || []).find((h) => h.name.toLowerCase().includes(needle)) || null;
+    const habits = state.habits || [];
+    const withTag = (tag) => habits.filter((h) => h.tag === tag);
+    const anyTrue = (list, entries) => list.some((h) => entries[h.id] === true);
+    const anyLogged = (list, entries) => list.some((h) => isLogged(h, entries[h.id]));
 
-    const tech = byName("tech project");
-    const water = byName("water");
-    const guitar = byName("guitar");
-    const workout = byName("workout");
-    const mood = byName("mood");
-    const porn = byName("no porn");
-    const chess = byName("chess");
+    const tech = withTag("tech_project");
+    const water = withTag("water");
+    const guitar = withTag("guitar");
+    const workout = withTag("workout");
+    const mood = withTag("mood");
+    const porn = withTag("no_porn");
+    const chess = withTag("chess");
 
     let loggedDates = 0;
     let days5 = 0;
@@ -180,12 +182,12 @@ window.Gamify = (function () {
       }
       if (count > 0) loggedDates++;
       if (count >= 5) days5++;
-      if (tech && entries[tech.id] === true) techDays++;
-      if (water && water.target && Number(entries[water.id]) >= Number(water.target)) waterDays++;
-      if (guitar && entries[guitar.id] === true) guitarDays++;
-      if (workout && entries[workout.id] === true && mood && isLogged(mood, entries[mood.id])) mindBodyDays++;
-      if (porn && entries[porn.id] === true) cleanDays++;
-      if (chess) chessGames += Number(entries[chess.id]) || 0;
+      if (anyTrue(tech, entries)) techDays++;
+      if (water.some((h) => h.target && Number(entries[h.id]) >= Number(h.target))) waterDays++;
+      if (anyTrue(guitar, entries)) guitarDays++;
+      if (anyTrue(workout, entries) && anyLogged(mood, entries)) mindBodyDays++;
+      if (anyTrue(porn, entries)) cleanDays++;
+      for (const h of chess) chessGames += Number(entries[h.id]) || 0;
     }
 
     return {

@@ -222,6 +222,7 @@ js/habits.js        habit CRUD + logging
 js/gamify.js        XP, levels, badges, consistency
 js/ui.js            DOM helpers, dates, toasts, modals
 js/graphs.js        Chart.js views
+js/vendor/chart.umd.js  Chart.js 4.4.1, self-hosted (MIT)
 js/heatmap.js       53 × 7 grid
 js/auth.js          create/login/session
 js/app.js           views, routing, events
