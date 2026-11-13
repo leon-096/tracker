@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#0a0a0a">
+<title>tracker</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%230a0a0a'/%3E%3Ctext x='6' y='22' font-family='monospace' font-size='18' fill='%2300ff88'%3E%3E%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="crt" class="crt" hidden></div>
+
+<div id="lock-screen" class="lock">
+  <div class="lock-box">
+    <div class="lock-logo">&gt; tracker<span class="caret">_</span></div>
+    <div id="lock-body" class="lock-body">
+      <p class="dim">&gt; loading encrypted store&hellip;</p>
+    </div>
+    <p class="lock-foot dim">AES-256-GCM &middot; PBKDF2 &middot; Asia/Dhaka</p>
+  </div>
+</div>
+
+<div id="app" hidden>
+  <header id="app-header" class="app-header"></header>
+  <nav id="tabs" class="tabs" aria-label="Sections"></nav>
+  <main id="views" class="views">
+    <section id="view-today" class="view" aria-label="Today"></section>
+    <section id="view-graphs" class="view" aria-label="Graphs" hidden></section>
+    <section id="view-heatmap" class="view" aria-label="Heatmap" hidden></section>
+    <section id="view-trophies" class="view" aria-label="Trophies" hidden></section>
+    <section id="view-manage" class="view" aria-label="Manage habits" hidden></section>
+    <section id="view-settings" class="view" aria-label="Settings" hidden></section>
+  </main>
+</div>
+
+<div id="toast-root" class="toast-root" aria-live="polite" aria-atomic="false"></div>
+<div id="modal-root" class="modal-root" hidden></div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" defer></script>
+<script src="js/config.js" defer></script>
+<script src="js/crypto.js" defer></script>
+<script src="js/gist.js" defer></script>
+<script src="js/gamify.js" defer></script>
+<script src="js/ui.js" defer></script>
+<script src="js/store.js" defer></script>
+<script src="js/habits.js" defer></script>
+<script src="js/graphs.js" defer></script>
+<script src="js/heatmap.js" defer></script>
+<script src="js/auth.js" defer></script>
+<script src="js/app.js" defer></script>
+</body>
+</html>
